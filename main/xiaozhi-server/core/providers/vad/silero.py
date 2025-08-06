@@ -32,6 +32,7 @@ class VADProvider(VADProviderBase):
         self.silence_threshold_ms = (
             int(min_silence_duration_ms) if min_silence_duration_ms else 1000
         )
+        logger.bind(tag=TAG).info(f"vad_threshold: {self.vad_threshold}, vad_threshold_low: {self.vad_threshold_low}, silence_threshold_ms: {self.silence_threshold_ms}")
 
         # 至少要多少帧才算有语音
         self.frame_window_threshold = 3
@@ -72,6 +73,19 @@ class VADProvider(VADProviderBase):
                 conn.client_voice_window.append(is_voice)
                 client_have_voice = (conn.client_voice_window.count(True) >= self.frame_window_threshold)
 
+                # 如果之前没有声音，但现在有声音，记录说话开始时间
+                if not conn.client_have_voice and client_have_voice:
+                    conn.speech_start_time = time.time() * 1000
+
+                # 检查是否说话超过5秒，如果是则强制停止
+                if client_have_voice and conn.speech_start_time > 0:
+                    speech_duration = time.time() * 1000 - conn.speech_start_time
+                    if speech_duration >= 5000:  # 5秒超时
+                        # client_have_voice = False
+                        conn.client_voice_stop = True
+                        conn.speech_start_time = 0.0
+                        conn.logger.bind(tag=TAG).info("用户说话超过5秒，自动截断")
+                        
                 # 如果之前有声音，但本次没有声音，且与上次有声音的时间差已经超过了静默阈值，则认为已经说完一句话
                 if conn.client_have_voice and not client_have_voice:
                     stop_duration = time.time() * 1000 - conn.last_activity_time

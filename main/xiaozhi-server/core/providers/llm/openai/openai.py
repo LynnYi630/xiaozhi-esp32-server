@@ -50,17 +50,32 @@ class LLMProvider(LLMProviderBase):
 
     def response(self, session_id, dialogue, **kwargs):
         try:
-            responses = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=dialogue,
-                stream=True,
-                max_tokens=kwargs.get("max_tokens", self.max_tokens),
-                temperature=kwargs.get("temperature", self.temperature),
-                top_p=kwargs.get("top_p", self.top_p),
-                frequency_penalty=kwargs.get(
-                    "frequency_penalty", self.frequency_penalty
-                ),
-            )
+            if "Qwen3" in self.model_name:
+                logger.bind(tag=TAG).info("使用Qwen3模型")
+                responses = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=dialogue,
+                    stream=True,
+                    max_tokens=kwargs.get("max_tokens", self.max_tokens),
+                    temperature=kwargs.get("temperature", self.temperature),
+                    top_p=kwargs.get("top_p", self.top_p),
+                    frequency_penalty=kwargs.get(
+                        "frequency_penalty", self.frequency_penalty
+                    ),
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False},},
+                )
+            else: 
+                responses = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=dialogue,
+                    stream=True,
+                    max_tokens=kwargs.get("max_tokens", self.max_tokens),
+                    temperature=kwargs.get("temperature", self.temperature),
+                    top_p=kwargs.get("top_p", self.top_p),
+                    frequency_penalty=kwargs.get(
+                        "frequency_penalty", self.frequency_penalty
+                    ),
+                )
 
             is_active = True
             for chunk in responses:
@@ -90,9 +105,15 @@ class LLMProvider(LLMProviderBase):
 
     def response_with_functions(self, session_id, dialogue, functions=None):
         try:
-            stream = self.client.chat.completions.create(
-                model=self.model_name, messages=dialogue, stream=True, tools=functions
-            )
+            if "Qwen3" in self.model_name:
+                logger.bind(tag=TAG).info("使用Qwen3模型with functions")
+                stream = self.client.chat.completions.create(
+                    model=self.model_name, messages=dialogue, stream=True, tools=functions, extra_body={"chat_template_kwargs": {"enable_thinking": False},}
+                )
+            else:
+                stream = self.client.chat.completions.create(
+                    model=self.model_name, messages=dialogue, stream=True, tools=functions
+                )
 
             for chunk in stream:
                 # 检查是否存在有效的choice且content不为空

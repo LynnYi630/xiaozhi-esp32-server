@@ -119,6 +119,7 @@ class ConnectionHandler:
         self.client_voice_stop = False
         self.client_voice_window = deque(maxlen=5)
         self.last_is_voice = False
+        self.speech_start_time = 0.0  # (新增)用户开始说话的时间戳（毫秒）
 
         # asr相关变量
         # 因为实际部署时可能会用到公共的本地ASR，不能把变量暴露给公共ASR
