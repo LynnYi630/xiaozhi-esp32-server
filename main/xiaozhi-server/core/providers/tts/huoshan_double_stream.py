@@ -152,6 +152,12 @@ class TTSProvider(TTSProviderBase):
             self.voice = config.get("private_voice")
         else:
             self.voice = config.get("speaker")
+        speech_rate = config.get("speech_rate", "0")
+        loudness_rate = config.get("loudness_rate", "0")
+        pitch = config.get("pitch", "0")
+        self.speech_rate = int(speech_rate) if speech_rate else 0
+        self.loudness_rate = int(loudness_rate) if loudness_rate else 0
+        self.pitch = int(pitch) if pitch else 0
         self.ws_url = config.get("ws_url")
         self.authorization = config.get("authorization")
         self.header = {"Authorization": f"{self.authorization}{self.access_token}"}
@@ -636,8 +642,15 @@ class TTSProvider(TTSProviderBase):
                         "audio_params": {
                             "format": audio_format,
                             "sample_rate": audio_sample_rate,
+                            "speech_rate": self.speech_rate,
+                            "loudness_rate": self.loudness_rate
                         },
                     },
+                    "additions": {
+                        "post_process": {
+                            "pitch": self.pitch
+                        }
+                    }
                 }
             )
         )
