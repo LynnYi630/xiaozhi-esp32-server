@@ -12,11 +12,9 @@ docker镜像已支持x86架构、arm64架构的CPU，支持在国产操作系统
 
 ### 1.1 手动部署
 
-如果懒人脚本无法正常运行，请按本章节1.2进行手动部署。
-
 #### 1.1.1 创建目录
 
-安装完后，你需要为这个项目找一个安放配置文件的目录，例如我们可以新建一个文件夹叫`xiaozhi-server`。
+安装完docker后，你需要为这个项目找一个安放配置文件的目录，例如我们可以新建一个文件夹叫`xiaozhi-server`。
 
 创建好目录后，你需要在`xiaozhi-server`下面创建`data`文件夹和`models`文件夹，`models`下面还要再创建`SenseVoiceSmall`文件夹。
 
@@ -258,19 +256,30 @@ LLM:
 
 2、 [基于虾哥编译好的固件配置自定义服务器](firmware-setting.md)了。
 
-
+# 常见问题
 以下是一些常见问题，供参考：
 
-[1、为什么我说的话，小智识别出来很多韩文、日文、英文](./FAQ.md)
-
-[2、为什么会出现“TTS 任务出错 文件不存在”？](./FAQ.md)
-
-[3、TTS 经常失败，经常超时](./FAQ.md)
-
-[4、使用Wifi能连接自建服务器，但是4G模式却接不上](./FAQ.md)
-
-[5、如何提高小智对话响应速度？](./FAQ.md)
-
-[6、我说话很慢，停顿时小智老是抢话](./FAQ.md)
-
-[7、我想通过小智控制电灯、空调、远程开关机等操作](./FAQ.md)
+1、[为什么我说的话，小智识别出来很多韩文、日文、英文](./FAQ.md)<br/>
+2、[为什么会出现“TTS 任务出错 文件不存在”？](./FAQ.md)<br/>
+3、[TTS 经常失败，经常超时](./FAQ.md)<br/>
+4、[使用Wifi能连接自建服务器，但是4G模式却接不上](./FAQ.md)<br/>
+5、[如何提高小智对话响应速度？](./FAQ.md)<br/>
+6、[我说话很慢，停顿时小智老是抢话](./FAQ.md)<br/>
+## 部署相关教程
+1、[如何自动拉取本项目最新代码自动编译和启动](./dev-ops-integration.md)<br/>
+2、[如何与Nginx集成](https://github.com/xinnan-tech/xiaozhi-esp32-server/issues/791)<br/>
+## 拓展相关教程
+1、[如何开启手机号码注册智控台](./ali-sms-integration.md)<br/>
+2、[如何集成HomeAssistant实现智能家居控制](./homeassistant-integration.md)<br/>
+3、[如何开启视觉模型实现拍照识物](./mcp-vision-integration.md)<br/>
+4、[如何部署MCP接入点](./mcp-endpoint-enable.md)<br/>
+5、[如何接入MCP接入点](./mcp-endpoint-integration.md)<br/>
+6、[如何开启声纹识别](./voiceprint-integration.md)<br/>
+10、[新闻插件源配置指南](./newsnow_plugin_config.md)<br/>
+## 语音克隆、本地语音部署相关教程
+1、[如何部署集成index-tts本地语音](./index-stream-integration.md)<br/>
+2、[如何部署集成fish-speech本地语音](./fish-speech-integration.md)<br/>
+3、[如何部署集成PaddleSpeech本地语音](./paddlespeech-deploy.md)<br/>
+## 性能测试教程
+1、[各组件速度测试指南](./performance_tester.md)<br/>
+2、[定期公开测试结果](https://github.com/xinnan-tech/xiaozhi-performance-research)<br/>
