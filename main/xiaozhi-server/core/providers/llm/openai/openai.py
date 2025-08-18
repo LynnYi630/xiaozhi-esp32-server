@@ -47,11 +47,12 @@ class LLMProvider(LLMProviderBase):
         if model_key_msg:
             logger.bind(tag=TAG).error(model_key_msg)
         self.client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url, timeout=httpx.Timeout(self.timeout))
+        logger.bind(tag=TAG).info(f"LLMProvider初始化成功，模型：{self.model_name}, 地址：{self.base_url}")
 
     def response(self, session_id, dialogue, **kwargs):
         try:
             if "Qwen3" in self.model_name:
-                logger.bind(tag=TAG).info("使用Qwen3模型")
+                logger.bind(tag=TAG).info(f"使用Qwen3模型：{self.model_name}")
                 responses = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=dialogue,
@@ -105,10 +106,13 @@ class LLMProvider(LLMProviderBase):
 
     def response_with_functions(self, session_id, dialogue, functions=None):
         try:
-            if "Qwen3" in self.model_name:
-                logger.bind(tag=TAG).info("使用Qwen3模型with functions")
+            if "Qwen3" in self.model_name or "qwen3" in self.model_name:
+                logger.bind(tag=TAG).info(f"使用Qwen3模型with functions：{self.model_name}")
+                logger.bind(tag=TAG).info(f"发送的消息: {dialogue}")
+                logger.bind(tag=TAG).info(f"工具列表: {functions}")
                 stream = self.client.chat.completions.create(
-                    model=self.model_name, messages=dialogue, stream=True, tools=functions, extra_body={"chat_template_kwargs": {"enable_thinking": False},}
+                    model=self.model_name, messages=dialogue, stream=True, tools=functions,
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False},},
                 )
             else:
                 stream = self.client.chat.completions.create(
@@ -118,9 +122,7 @@ class LLMProvider(LLMProviderBase):
             for chunk in stream:
                 # 检查是否存在有效的choice且content不为空
                 if getattr(chunk, "choices", None):
-                    yield chunk.choices[0].delta.content, chunk.choices[
-                        0
-                    ].delta.tool_calls
+                    yield chunk.choices[0].delta.content, chunk.choices[0].delta.tool_calls
                 # 存在 CompletionUsage 消息时，生成 Token 消耗 log
                 elif isinstance(getattr(chunk, "usage", None), CompletionUsage):
                     usage_info = getattr(chunk, "usage", None)

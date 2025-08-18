@@ -216,6 +216,13 @@ def get_weather(conn, location: str = None, lang: str = "zh_CN"):
     # 提示语
     weather_report += "\n（如需某一天的具体天气，请告诉我日期）"
 
+    # 把天气信息中的'°'替换为'度'
+    weather_report = weather_report.replace("°", "度")
+    # 把天气信息中的'℃'替换为'摄氏度'
+    weather_report = weather_report.replace("℃", "摄氏度")
+    # 把天气信息中的'~'替换为'到'
+    weather_report = weather_report.replace("~", "到")
+
     # 缓存完整的天气报告
     cache_manager.set(CacheType.WEATHER, weather_cache_key, weather_report)
 
