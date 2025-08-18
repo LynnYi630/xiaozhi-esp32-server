@@ -51,8 +51,7 @@ class LLMProvider(LLMProviderBase):
 
     def response(self, session_id, dialogue, **kwargs):
         try:
-            if "Qwen3" in self.model_name:
-                logger.bind(tag=TAG).info(f"使用Qwen3模型：{self.model_name}")
+            if "Qwen3" in self.model_name or "qwen3" in self.model_name:
                 responses = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=dialogue,
@@ -106,13 +105,15 @@ class LLMProvider(LLMProviderBase):
 
     def response_with_functions(self, session_id, dialogue, functions=None):
         try:
-            if "Qwen3" in self.model_name or "qwen3" in self.model_name:
-                logger.bind(tag=TAG).info(f"使用Qwen3模型with functions：{self.model_name}")
-                logger.bind(tag=TAG).info(f"发送的消息: {dialogue}")
-                logger.bind(tag=TAG).info(f"工具列表: {functions}")
+            if "qwen3" in self.model_name.lower():
                 stream = self.client.chat.completions.create(
                     model=self.model_name, messages=dialogue, stream=True, tools=functions,
                     extra_body={"chat_template_kwargs": {"enable_thinking": False},},
+                )
+            elif "doubao" in self.model_name.lower():
+                stream = self.client.chat.completions.create(
+                    model=self.model_name, messages=dialogue, stream=True, tools=functions,
+                    extra_body={"thinking": {"type": "disabled"}},
                 )
             else:
                 stream = self.client.chat.completions.create(
