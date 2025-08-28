@@ -120,6 +120,7 @@ class PromptManager:
         from datetime import datetime
 
         now = datetime.now()
+        current_time = now.strftime("%H点%M分")
         today_date = now.strftime("%Y-%m-%d")
         today_weekday = WEEKDAY_MAP[now.strftime("%A")]
         today_lunar = cnlunar.Lunar(now, godType="8char")
@@ -129,7 +130,7 @@ class PromptManager:
             today_lunar.lunarDayCn,
         )
 
-        return today_date, today_weekday, lunar_date
+        return current_time, today_date, today_weekday, lunar_date
 
     def _get_location_info(self, client_ip: str) -> str:
         """获取位置信息"""
@@ -198,7 +199,7 @@ class PromptManager:
 
         try:
             # 获取最新的时间信息（不缓存）
-            today_date, today_weekday, lunar_date = (
+            current_time, today_date, today_weekday, lunar_date = (
                 self._get_current_time_info()
             )
 
@@ -223,7 +224,7 @@ class PromptManager:
             template = Template(self.base_prompt_template)
             enhanced_prompt = template.render(
                 base_prompt=user_prompt,
-                current_time="{{current_time}}",
+                current_time=current_time,
                 today_date=today_date,
                 today_weekday=today_weekday,
                 lunar_date=lunar_date,
