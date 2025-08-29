@@ -141,10 +141,6 @@ class ConnectionHandler:
         self.func_handler = None
 
         self.cmd_exit = self.config["exit_commands"]
-        self.max_cmd_length = 0
-        for cmd in self.cmd_exit:
-            if len(cmd) > self.max_cmd_length:
-                self.max_cmd_length = len(cmd)
 
         # 是否在聊天结束后关闭连接
         self.close_after_chat = False

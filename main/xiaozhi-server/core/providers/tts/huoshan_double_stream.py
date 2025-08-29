@@ -213,7 +213,6 @@ class TTSProvider(TTSProviderBase):
 
                 if message.sentence_type == SentenceType.FIRST:
                     self.conn.client_abort = False
-                    self.reset_flow_controller()
 
                 if self.conn.client_abort:
                     try:

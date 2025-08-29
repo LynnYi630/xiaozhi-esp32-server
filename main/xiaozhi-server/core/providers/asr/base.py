@@ -12,7 +12,7 @@ import time
 import concurrent.futures
 from abc import ABC, abstractmethod
 from config.logger import setup_logging
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Optional, Tuple, List
 from core.handle.receiveAudioHandle import startToChat
 from core.handle.reportHandle import enqueue_asr_report
 from core.utils.util import remove_punctuation_and_length
@@ -132,8 +132,6 @@ class ASRProviderBase(ABC):
                     return None
             
             # 使用线程池执行器并行运行
-            parallel_start_time = time.monotonic()
-            
             with concurrent.futures.ThreadPoolExecutor(max_workers=2) as thread_executor:
                 asr_future = thread_executor.submit(run_asr)
                 

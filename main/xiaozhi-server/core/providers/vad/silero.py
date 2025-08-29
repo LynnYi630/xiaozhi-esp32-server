@@ -34,8 +34,8 @@ class VADProvider(VADProviderBase):
         )
         logger.bind(tag=TAG).info(f"vad_threshold: {self.vad_threshold}, vad_threshold_low: {self.vad_threshold_low}, silence_threshold_ms: {self.silence_threshold_ms}")
 
-        # 至少要多少帧才算有语音
-        self.frame_window_threshold = 3
+        # 至少要多少帧才算有语音,增加灵敏度
+        self.frame_window_threshold = 1
 
     def is_vad(self, conn, opus_packet):
         try:

@@ -1,4 +1,6 @@
 import json
+import asyncio
+import time
 from core.providers.tts.dto.dto import SentenceType
 from core.utils import textUtils
 
@@ -28,12 +30,59 @@ async def sendAudioMessage(conn, sentenceType, audios, text):
 
 
 # 播放音频
-async def sendAudio(conn, audios):
+async def sendAudio(conn, audios, pre_buffer=False):
+    """
+    发送单个opus包，支持流控
+    Args:
+        conn: 连接对象
+        opus_packet: 单个opus数据包
+        pre_buffer: 快速发送音频
+    """
     if audios is None:
         return
-    # 如果audios不是opus数组，则不需要进行遍历，可以直接发送;这里需要进行流控管理，防止发送过快引发客户端溢出
+
     if isinstance(audios, bytes):
+        if conn.client_abort:
+            return
+
+        # 短音频直接发送（例如：提示音）
+        if pre_buffer:
+            await conn.websocket.send(audios)
+            return
+
+        # 重置没有声音的状态
+        conn.last_activity_time = time.time() * 1000
+
+        # 流控逻辑：确保按60ms的帧时长间隔发送
+        frame_duration = 60  # 毫秒
+
+        # 获取或初始化流控状态
+        if not hasattr(conn, "audio_flow_control"):
+            conn.audio_flow_control = {
+                "last_send_time": 0,
+                "packet_count": 0,
+                "start_time": time.perf_counter(),
+            }
+
+        flow_control = conn.audio_flow_control
+        current_time = time.perf_counter()
+
+        # 计算期望的发送时间
+        expected_time = flow_control["start_time"] + (
+            flow_control["packet_count"] * frame_duration / 1000
+        )
+
+        # 流控延迟
+        delay = expected_time - current_time
+        if delay > 0:
+            await asyncio.sleep(delay)
+
+        # 发送数据包
         await conn.websocket.send(audios)
+
+        # 更新流控状态
+        flow_control["packet_count"] += 1
+        flow_control["last_send_time"] = time.perf_counter()
 
 
 async def send_tts_message(conn, state, text=None):
@@ -52,8 +101,12 @@ async def send_tts_message(conn, state, text=None):
             stop_tts_notify_voice = conn.config.get(
                 "stop_tts_notify_voice", "config/assets/tts_notify.mp3"
             )
-            audios, _ = conn.tts.audio_to_opus_data(stop_tts_notify_voice)
-            await sendAudio(conn, audios)
+            conn.tts.audio_to_opus_data_stream(
+                stop_tts_notify_voice,
+                callback=lambda audio_data: asyncio.run_coroutine_threadsafe(
+                    sendAudio(conn, audio_data, True), conn.loop
+                ),
+            )
         # 清除服务端讲话状态
         conn.clearSpeakStatus()
 
@@ -72,7 +125,7 @@ async def send_stt_message(conn, text):
     display_text = text
     try:
         # 尝试解析JSON格式
-        if text.strip().startswith('{') and text.strip().endswith('}'):
+        if text.strip().startswith("{") and text.strip().endswith("}"):
             parsed_data = json.loads(text)
             if isinstance(parsed_data, dict) and "content" in parsed_data:
                 # 如果是包含说话人信息的JSON格式，只显示content部分
