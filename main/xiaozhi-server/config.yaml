@@ -59,6 +59,12 @@ log:
 delete_audio: true
 # 没有语音输入多久后断开连接(秒)，默认2分钟，即120秒
 close_connection_no_voice_time: 120
+# TTS请求超时时间(秒)
+tts_timeout: 10
+# 开启唤醒词加速
+enable_wakeup_words_response_cache: true
+# 开场是否回复唤醒词
+enable_greeting: true
 # 说完话是否开启提示音
 enable_stop_tts_notify: false
 # 说完话是否开启提示音，音效地址

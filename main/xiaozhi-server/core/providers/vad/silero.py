@@ -34,7 +34,7 @@ class VADProvider(VADProviderBase):
         )
         logger.bind(tag=TAG).info(f"vad_threshold: {self.vad_threshold}, vad_threshold_low: {self.vad_threshold_low}, silence_threshold_ms: {self.silence_threshold_ms}")
 
-        # 至少要多少帧才算有语音,增加灵敏度
+        # 至少要多少帧才算有语音
         self.frame_window_threshold = 1
 
     def is_vad(self, conn, opus_packet):
@@ -71,7 +71,9 @@ class VADProvider(VADProviderBase):
 
                 # 更新滑动窗口
                 conn.client_voice_window.append(is_voice)
-                client_have_voice = (conn.client_voice_window.count(True) >= self.frame_window_threshold)
+                client_have_voice = (
+                    conn.client_voice_window.count(True) >= self.frame_window_threshold
+                )
 
                 # 如果之前没有声音，但现在有声音，记录说话开始时间
                 if not conn.client_have_voice and client_have_voice:

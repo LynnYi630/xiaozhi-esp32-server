@@ -94,7 +94,7 @@ Spearheaded by Professor Siyuan Liu's Team (South China University of Technology
   </tr>
   <tr>
     <td>
-        <a href="https://www.bilibili.com/video/BV1Vy96YCE3R" target="_blank">
+        <a href="https://www.bilibili.com/video/BV1vchQzaEse" target="_blank">
          <picture>
            <img alt="自定义音色" src="docs/images/demo6.png" />
          </picture>
@@ -283,6 +283,8 @@ Websocket接口地址: wss://2662r3426b.vicp.fun/xiaozhi/v1/
 | dify 接口调用 | Dify | - |
 | fastgpt 接口调用 | Fastgpt | - |
 | coze 接口调用 | Coze | - |
+| xinference 接口调用 | Xinference | - |
+| homeassistant 接口调用 | HomeAssistant | - |
 
 实际上，任何支持 openai 接口调用的 LLM 均可接入使用。
 
@@ -302,8 +304,8 @@ Websocket接口地址: wss://2662r3426b.vicp.fun/xiaozhi/v1/
 
 | 使用方式 | 支持平台 | 免费平台 |
 |:---:|:---:|:---:|
-| 接口调用 | EdgeTTS、火山引擎豆包TTS、腾讯云、阿里云TTS、CosyVoiceSiliconflow、TTS302AI、CozeCnTTS、GizwitsTTS、ACGNTTS、OpenAITTS、灵犀流式TTS | 灵犀流式TTS、EdgeTTS、CosyVoiceSiliconflow(部分) |
-| 本地服务 | FishSpeech、GPT_SOVITS_V2、GPT_SOVITS_V3、MinimaxTTS | FishSpeech、GPT_SOVITS_V2、GPT_SOVITS_V3、MinimaxTTS |
+| 接口调用 | EdgeTTS、火山引擎豆包TTS、腾讯云、阿里云TTS、阿里云流式TTS、CosyVoiceSiliconflow、TTS302AI、CozeCnTTS、GizwitsTTS、ACGNTTS、OpenAITTS、灵犀流式TTS、MinimaxTTS、火山双流式TTS | 灵犀流式TTS、EdgeTTS、CosyVoiceSiliconflow(部分) |
+| 本地服务 | FishSpeech、GPT_SOVITS_V2、GPT_SOVITS_V3、Index-TTS、PaddleSpeech | Index-TTS、PaddleSpeech、FishSpeech、GPT_SOVITS_V2、GPT_SOVITS_V3 |
 
 ---
 
@@ -320,7 +322,7 @@ Websocket接口地址: wss://2662r3426b.vicp.fun/xiaozhi/v1/
 | 使用方式 | 支持平台 | 免费平台 |
 |:---:|:---:|:---:|
 | 本地使用 | FunASR、SherpaASR | FunASR、SherpaASR |
-| 接口调用 | DoubaoASR、FunASRServer、TencentASR、AliyunASR | FunASRServer |
+| 接口调用 | DoubaoASR、Doubao流式ASR、FunASRServer、TencentASR、AliyunASR、Aliyun流式ASR、百度ASR、OpenAI ASR | FunASRServer |
 
 ---
 
@@ -338,6 +340,7 @@ Websocket接口地址: wss://2662r3426b.vicp.fun/xiaozhi/v1/
 |:------:|:---------------:|:----:|:---------:|:--:|
 | Memory |     mem0ai      | 接口调用 | 1000次/月额度 |    |
 | Memory | mem_local_short | 本地总结 |    免费     |    |
+| Memory |     nomem       | 无记忆模式 |    免费     |    |
 
 ---
 
@@ -347,6 +350,7 @@ Websocket接口地址: wss://2662r3426b.vicp.fun/xiaozhi/v1/
 |:------:|:-------------:|:----:|:-------:|:---------------------:|
 | Intent |  intent_llm   | 接口调用 | 根据LLM收费 |    通过大模型识别意图，通用性强     |
 | Intent | function_call | 接口调用 | 根据LLM收费 | 通过大模型函数调用完成意图，速度快，效果好 |
+| Intent |    nointent   | 无意图模式 |    免费     |    不进行意图识别，直接返回对话结果     |
 
 ---
 
