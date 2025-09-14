@@ -664,6 +664,7 @@ class ConnectionHandler:
     def chat(self, query, depth=0):
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
         self.llm_finish_task = False
+        # 使用用户的问题来构建增强对话
         
         # 为最顶层时新建会话ID和发送FIRST请求
         if depth == 0:

@@ -21,7 +21,7 @@ cozepy==0.12.0
 mem0ai==0.1.62
 bs4==0.0.2
 modelscope==1.23.2
-sherpa_onnx==1.12.8
+# sherpa_onnx==1.12.8
 mcp==1.8.1
 cnlunar==0.2.0
 PySocks==1.7.1
@@ -36,3 +36,13 @@ psutil==7.0.0
 portalocker==2.10.1
 Jinja2==3.1.6
 future==0.17.1
+langchain
+langchain-community
+langchain-qdrant
+openpyxl==3.1.5
+pandas==2.2.3
+qdrant-client==1.13.2
+redis==5.2.1
+xlrd==2.0.1
+sentence-transformers
+langchain-huggingface

@@ -68,6 +68,9 @@ def get_config_from_api(config):
             "vision_explain": config["server"].get("vision_explain", ""),
             "auth_key": config["server"].get("auth_key", ""),
         }
+    # 添加保留本地的RAG配置
+    if config.get("rag"):
+        config_data["rag"] = config["rag"]
     return config_data
 
 
