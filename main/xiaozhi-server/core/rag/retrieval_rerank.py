@@ -3,14 +3,14 @@
 import os
 import redis
 import json
-from typing import List, Dict
+import requests # 需要导入 requests
+from typing import List, Dict, Optional # 需要导入 Optional
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 
 # --- 配置区 ---
-# 动态地添加项目根目录到Python路径
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from config.config_loader import load_config
@@ -23,28 +23,21 @@ EMBEDDING_MODEL_NAME = RAG_CONFIG.get("embedding_model_name", "BAAI/bge-base-zh-
 QDRANT_URL = RAG_CONFIG.get("qdrant_url", "http://localhost:6333")
 COLLECTION_NAME = RAG_CONFIG.get("collection_name", "default_collection")
 
-# Redis 连接信息
 REDIS_HOST = REDIS_CONFIG.get("host", "localhost")
 REDIS_PORT = REDIS_CONFIG.get("port", 6379)
 REDIS_DB = REDIS_CONFIG.get("db", 0)
 PARENT_DOCS_KEY_PREFIX = REDIS_CONFIG.get("parent_docs_key_prefix", "parent_doc:")
 
-# 检索参数
-# 在向量数据库中搜索最相似的前K个“子文档”
-CHILD_K = RAG_CONFIG.get("child_k", 10)
-# 最终返回给大模型的前N个“父文档”
-PARENT_K = RAG_CONFIG.get("parent_k", 3)
+CHILD_K = RAG_CONFIG.get("child_k", 20) # 粗排可以召回更多候选者
+PARENT_K = RAG_CONFIG.get("parent_k", 5) # 精排后返回的数量
 SCORE_THRESHOLD = RAG_CONFIG.get("score_threshold", 0.5)
 # --- 配置区结束 ---
 
-class RetrievalEngine:
+class RerankRetrievalEngine:
     """
-    一个实现了“父文档检索器”逻辑的、使用Redis作为父文档存储的生产级RAG引擎。
+    一个实现了“父文档检索器”+“重排序”的、生产级的RAG引擎。
     """
     def __init__(self):
-        """
-        初始化检索引擎，连接到Redis和Qdrant。
-        """
         print("正在初始化 RetrievalEngine...")
         self.redis_client = self._connect_to_redis()
         self.embedding_model = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
@@ -57,11 +50,7 @@ class RetrievalEngine:
         print("RetrievalEngine 初始化完成。")
 
     def _connect_to_redis(self):
-        """
-        连接到Redis数据库。
-        """
         try:
-            # decode_responses=True 确保从Redis获取的值是字符串而不是字节
             client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
             client.ping()
             print(f"成功连接到 Redis at {REDIS_HOST}:{REDIS_PORT}")
@@ -70,57 +59,69 @@ class RetrievalEngine:
             print(f"严重错误: 无法连接到 Redis. 检索功能将不可用. Error: {e}")
             return None
 
+    def rerank_documents(self, query: str, documents: List[str], top_n: int) -> Optional[List[str]]:
+        """
+        重排序阶段（精排）
+        调用 DashScope Rerank API 对检索结果进行重排序
+        """
+        API_KEY = "sk-977514b96730495e811f87d2b70f22c5" # 请确保这个Key是有效的
+
+        request_body = {
+            "model": "gte-rerank-v2",
+            "input": { "query": query, "documents": documents },
+            "parameters": { "return_documents": True, "top_n": top_n }
+        }
+        headers = { "Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json" }
+
+        try:
+            response = requests.post(
+                "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank",
+                headers=headers,
+                json=request_body
+            )
+            response.raise_for_status()
+            result = response.json()
+            return [doc["document"]["text"] for doc in result["output"]["results"]]
+        except requests.exceptions.RequestException as e:
+            print(f"Rerank API 调用失败: {e}")
+            return None
+
     def search(self, query: str) -> List[str]:
-        """
-        执行完整的父文档检索流程。
-        
-        :param query: 用户的查询字符串。
-        :return: 一个包含格式化后父文档内容的字符串列表。
-        """
         if not self.redis_client:
             print("错误: Redis未连接，无法执行父文档检索。")
             return []
             
         try:
-            # 1. 在Qdrant中进行相似度搜索，召回相关的“子文档”
-            retrieved_children = self.vectorstore.similarity_search_with_score(
-                query, k=CHILD_K, score_threshold=SCORE_THRESHOLD
-            )
+            retrieved_children = self.vectorstore.similarity_search(query, k=CHILD_K)
         except Exception as e:
             print(f"在Qdrant中进行向量搜索时出错: {e}")
             return []
 
         if not retrieved_children:
-            print("没有在向量数据库中找到相关的子文档。")
             return []
 
-        # 2. 从子文档的元数据中提取父文档ID
-        parent_ids = [doc.metadata['parent_id'] for doc, score in retrieved_children if 'parent_id' in doc.metadata]
-
-        # 3. 使用字典键的特性进行有序去重
+        parent_ids = [doc.metadata['parent_id'] for doc in retrieved_children if 'parent_id' in doc.metadata]
         unique_parent_ids = list(dict.fromkeys(parent_ids))
         
-        # 4. 从 Redis 批量获取父文档
-        # 为所有父文档ID添加前缀，以匹配Redis中的键
         prefixed_parent_ids = [f"{PARENT_DOCS_KEY_PREFIX}{pid}" for pid in unique_parent_ids]
-        print(f"带前缀的父文档ID: {prefixed_parent_ids}")
-
-        # mget 对于不存在的 key 会返回 None
         retrieved_parents_contents = self.redis_client.mget(prefixed_parent_ids)
-        print(f"从 Redis 获取到的父文档内容: {retrieved_parents_contents}")
-
-        # 5. 过滤掉为None的结果并截取最终数量
-        final_parents = []
-        for content in retrieved_parents_contents:
-            if content:
-                final_parents.append(content)
-            if len(final_parents) >= PARENT_K:
-                break
         
-        # 6. 格式化输出，为LLM提供清晰的上下文
+        # 过滤掉None的结果
+        candidate_parents = [content for content in retrieved_parents_contents if content]
+
+        if not candidate_parents:
+            return []
+
+        # === 重排序步骤 ===
+        print(f"正在对 {len(candidate_parents)} 个候选父文档进行重排序...")
+        reranked_parents = self.rerank_documents(query, candidate_parents, top_n=PARENT_K)
+
+        # 如果重排序失败，则退回使用粗排的结果
+        final_parents = reranked_parents if reranked_parents is not None else candidate_parents[:PARENT_K]
+        
         formatted_docs = []
         for i, content in enumerate(final_parents):
             formatted_docs.append(f"--- 参考资料 {i+1} ---\n{content}")
 
-        print(f"检索成功，返回 {len(formatted_docs)} 个父文档作为上下文。")
+        print(f"检索成功，精排后返回 {len(formatted_docs)} 个父文档作为上下文。")
         return formatted_docs

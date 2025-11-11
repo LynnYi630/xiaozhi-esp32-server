@@ -45,10 +45,21 @@ class Dialogue:
         else:
             dialogue.append({"role": m.role, "content": m.content})
 
+    def get_recent_dialogue(self, n: int = 3) -> str:
+        """获取最近n条对话记录来构建增强查询"""
+        recent_messages = self.dialogue[-n:]
+        # 只包含 user 和 assistant 的内容
+        filtered_messages = [
+            f"{m.role}: {m.content}"
+            for m in recent_messages
+            if m.content and m.role in ["user", "assistant"]
+        ]
+        return "\n".join(filtered_messages)
+
     def get_llm_dialogue(self) -> List[Dict[str, str]]:
         # 直接调用get_llm_dialogue_with_memory，传入None作为memory_str
         # 这样确保说话人功能在所有调用路径下都生效
-        return self.get_llm_dialogue_with_memory(None, None)
+        return self.get_llm_dialogue_with_rag(None, None, None)
 
     def update_system_message(self, new_content: str):
         """更新或添加系统消息"""
@@ -61,6 +72,12 @@ class Dialogue:
 
     def get_llm_dialogue_with_memory(
         self, memory_str: str = None, voiceprint_config: dict = None
+    ) -> List[Dict[str, str]]:
+        return self.get_llm_dialogue_with_rag(memory_str, voiceprint_config, None)
+
+
+    def get_llm_dialogue_with_rag(
+        self, memory_str: str = None, voiceprint_config: dict = None, rag_docs: List[str] = None
     ) -> List[Dict[str, str]]:
         # 构建对话
         dialogue = []
@@ -99,15 +116,32 @@ class Dialogue:
             except:
                 # 配置读取失败时忽略错误，不影响其他功能
                 pass
-
+            
             # 使用正则表达式匹配 <memory> 标签，不管中间有什么内容
             if memory_str is not None:
-                enhanced_system_prompt = re.sub(
-                    r"<memory>.*?</memory>",
-                    f"<memory>\n{memory_str}\n</memory>",
-                    enhanced_system_prompt,
-                    flags=re.DOTALL,
-                )
+                if "<memory>" in enhanced_system_prompt:
+                    enhanced_system_prompt = re.sub(
+                        r"<memory>.*?</memory>",
+                        f"<memory>\n{memory_str}\n</memory>",
+                        enhanced_system_prompt,
+                        flags=re.DOTALL,
+                    )
+                else:
+                    enhanced_system_prompt += f"\n\n<memory>\n{memory_str}\n</memory>"
+
+            # Add RAG documents
+            if rag_docs:
+                rag_content = "\n".join(rag_docs)
+                if "<retrieved_documents>" in enhanced_system_prompt:
+                     enhanced_system_prompt = re.sub(
+                        r"<retrieved_documents>.*?</retrieved_documents>",
+                        f"<retrieved_documents>\n{rag_content}\n</retrieved_documents>",
+                        enhanced_system_prompt,
+                        flags=re.DOTALL,
+                    )
+                else:
+                    enhanced_system_prompt += f"\n\n<retrieved_documents>\n{rag_content}\n</retrieved_documents>"
+
             dialogue.append({"role": "system", "content": enhanced_system_prompt})
 
         # 添加用户和助手的对话

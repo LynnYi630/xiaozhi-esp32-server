@@ -5,6 +5,7 @@ from core.connection import ConnectionHandler
 from config.config_loader import get_config_from_api
 from core.utils.modules_initialize import initialize_modules
 from core.utils.util import check_vad_update, check_asr_update
+from core.rag.retrieval import RetrievalEngine
 
 TAG = __name__
 
@@ -29,7 +30,10 @@ class WebSocketServer:
         self._llm = modules["llm"] if "llm" in modules else None
         self._intent = modules["intent"] if "intent" in modules else None
         self._memory = modules["memory"] if "memory" in modules else None
-
+        
+        # 初始化 retriever 作为单例
+        self._retriever = RetrievalEngine()
+        
         self.active_connections = set()
 
     async def start(self):
@@ -52,6 +56,7 @@ class WebSocketServer:
             self._llm,
             self._memory,
             self._intent,
+            self._retriever,  # 传入单例 retriever
             self,  # 传入server实例
         )
         self.active_connections.add(handler)
@@ -131,6 +136,7 @@ class WebSocketServer:
                     self._intent = modules["intent"]
                 if "memory" in modules:
                     self._memory = modules["memory"]
+                
                 self.logger.bind(tag=TAG).info(f"更新配置任务执行完毕")
                 return True
         except Exception as e:

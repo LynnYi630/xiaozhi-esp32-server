@@ -183,3 +183,6 @@ uploadfile
 !main/manager-mobile/**/env/
 !main/manager-mobile/**/.env*
 !main/manager-mobile/**/*.json
+
+# ignore redis rdb
+main/xiaozhi-server/redis/redis-data/*

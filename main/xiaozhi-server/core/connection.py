@@ -27,6 +27,7 @@ from core.handle.reportHandle import report
 from core.providers.tts.default import DefaultTTS
 from concurrent.futures import ThreadPoolExecutor
 from core.utils.dialogue import Message, Dialogue
+from core.rag.retrieval import RetrievalEngine
 from core.providers.asr.dto.dto import InterfaceType
 from core.handle.textHandle import handleTextMessage
 from core.providers.tools.unified_tool_handler import UnifiedToolHandler
@@ -59,6 +60,7 @@ class ConnectionHandler:
         _llm,
         _memory,
         _intent,
+        _retriver,
         server=None,
     ):
         self.common_config = config
@@ -108,6 +110,8 @@ class ConnectionHandler:
         self.llm = _llm
         self.memory = _memory
         self.intent = _intent
+        # self.retriever = RetrievalEngine(qdrant_url=self.config.get("rag").get("qdrant_url")) # 初始化retriever
+        self.retriever = _retriver
 
         # 为每个连接单独管理声纹识别
         self.voiceprint_provider = None
@@ -669,14 +673,24 @@ class ConnectionHandler:
         # 为最顶层时新建会话ID和发送FIRST请求
         if depth == 0:
             self.sentence_id = str(uuid.uuid4().hex)
-            self.dialogue.put(Message(role="user", content=query))
-            self.tts.tts_text_queue.put(
-                TTSMessageDTO(
-                    sentence_id=self.sentence_id,
-                    sentence_type=SentenceType.FIRST,
-                    content_type=ContentType.ACTION,
-                )
+        self.dialogue.put(Message(role="user", content=query))
+        self.tts.tts_text_queue.put(
+            TTSMessageDTO(
+                sentence_id=self.sentence_id,
+                sentence_type=SentenceType.FIRST,
+                content_type=ContentType.ACTION,
             )
+        )
+    
+        # RAG - Start
+        # 1. Build enhanced query from recent dialogue
+        enhanced_query = self.dialogue.get_recent_dialogue(n=3)
+        self.logger.bind(tag=TAG).info(f"RAG enhanced query: {enhanced_query}")
+
+        # 2. Retrieve documents
+        retrieved_docs = self.retriever.search(enhanced_query)
+        self.logger.bind(tag=TAG).info(f"RAG retrieved docs: {retrieved_docs}")
+        # RAG - End
 
         # Define intent functions
         functions = None
@@ -693,8 +707,8 @@ class ConnectionHandler:
                 )
                 memory_str = future.result()
             self.logger.bind(tag=TAG).info(f"记忆模块返回结果: {memory_str}")
-            current_dialogue = self.dialogue.get_llm_dialogue_with_memory(
-                        memory_str, self.config.get('voiceprint', {})
+            current_dialogue = self.dialogue.get_llm_dialogue_with_rag(
+                        memory_str, self.config.get('voiceprint', {}), retrieved_docs
                     )
             self.logger.bind(tag=TAG).info(f"当前dialogue对象：{current_dialogue}")
             if self.intent_type == "function_call" and functions is not None:
