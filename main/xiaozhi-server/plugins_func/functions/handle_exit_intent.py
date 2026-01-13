@@ -8,7 +8,7 @@ handle_exit_intent_function_desc = {
     "type": "function",
     "function": {
         "name": "handle_exit_intent",
-        "description": "当用户想结束对话或需要退出系统时调用",
+        "description": "当用户想结束对话或需要退出系统时调用，用户说'再见'、'拜拜'、'Bye,Bye'、'结束'、'退出'时调用",
         "parameters": {
             "type": "object",
             "properties": {

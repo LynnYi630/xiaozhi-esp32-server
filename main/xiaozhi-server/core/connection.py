@@ -42,6 +42,15 @@ from core.utils.prompt_manager import PromptManager
 from core.utils.voiceprint_provider import VoiceprintProvider
 from core.utils import textUtils
 
+import re
+
+EMP_ROLE_WORDS = ["总监","经理","主管","负责人","leader","老板","院长","主任","老师","HR","人事","行政","前台"]
+EMP_INFO_WORDS = ["员工","同事","通讯录","工号","电话","手机号","邮箱","微信","联系方式","部门","岗位","职务","工位","座位","办公室","地址","负责","做什么","汇报","直属","上级","下属","带谁","管谁"]
+EMP_Q_WORDS    = ["在哪","在哪里","位置","怎么走","怎么联系","联系一下","找一下","找下","找找","找谁","是谁","电话","手机号","邮箱","微信","联系方式","部门","岗位","负责"]
+
+NAME_LIKE_RE   = re.compile(r"[\u4e00-\u9fff]{2,4}")
+FIND_VERB_RE   = re.compile(r"(找|联系|查询|查|问)(一下|下|一找|找)?")
+
 TAG = __name__
 
 auto_import_modules("plugins_func.functions")
@@ -665,6 +674,27 @@ class ConnectionHandler:
         # 更新系统prompt至上下文
         self.dialogue.update_system_message(self.prompt)
 
+    def _is_employee_query(self, query: str) -> bool:
+        q = re.sub(r"\s+", "", query or "")
+
+        # 1) 强员工词
+        if any(w in q for w in EMP_INFO_WORDS):
+            return True
+
+        # 2) 角色 + 询问
+        if any(role in q for role in EMP_ROLE_WORDS) and any(w in q for w in EMP_Q_WORDS):
+            return True
+
+        # 3) “找/联系/查询/查” + 像人名
+        if FIND_VERB_RE.search(q) and NAME_LIKE_RE.search(q):
+            return True
+
+        # 4) 像人名 + 询问词（
+        if NAME_LIKE_RE.search(q) and any(w in q for w in EMP_Q_WORDS):
+            return True
+
+        return False
+
     def chat(self, query, depth=0):
         self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
         self.llm_finish_task = False
@@ -681,7 +711,10 @@ class ConnectionHandler:
                 content_type=ContentType.ACTION,
             )
         )
-    
+
+        employee_query = self._is_employee_query(query)
+        self.logger.bind(tag=TAG).info(f"员工查询意图: {employee_query}")
+
         # RAG - Start
         # 1. Build enhanced query from recent dialogue
         enhanced_query = self.dialogue.get_recent_dialogue(n=3)
@@ -711,6 +744,7 @@ class ConnectionHandler:
                         memory_str, self.config.get('voiceprint', {}), retrieved_docs
                     )
             self.logger.bind(tag=TAG).info(f"当前dialogue对象：{current_dialogue}")
+
             if self.intent_type == "function_call" and functions is not None:
                 # 使用支持functions的streaming接口
                 llm_responses = self.llm.response_with_functions(
@@ -851,6 +885,203 @@ class ConnectionHandler:
 
         return True
 
+    # def chat(self, query, depth=0, add_user_message=True):
+    #     self.logger.bind(tag=TAG).info(f"大模型收到用户消息: {query}")
+    #     self.llm_finish_task = False
+
+    #     if add_user_message and isinstance(query, str):
+    #         if "请回复用户" in query or "查询结果" in query:
+    #             self.logger.bind(tag=TAG).error("【BUG】tool返回内容被当成 user 输入了！")
+
+        
+    #     # 为最顶层时新建会话ID和发送FIRST请求
+    #     if depth == 0:
+    #         self.sentence_id = str(uuid.uuid4().hex)
+    #         self.tts.tts_text_queue.put(
+    #             TTSMessageDTO(
+    #                 sentence_id=self.sentence_id,
+    #                 sentence_type=SentenceType.FIRST,
+    #                 content_type=ContentType.ACTION,
+    #             )
+    #         )
+
+    #     if add_user_message:
+    #         self.dialogue.put(Message(role="user", content=query))
+    #         self.last_user_query = query
+
+    #     # employee_query = self._is_employee_query(query)
+    #     # self.logger.bind(tag=TAG).info(f"员工查询意图: {employee_query}")
+
+    #     # RAG - Start
+    #     # 1. Build enhanced query from recent dialogue
+    #     enhanced_query = self.dialogue.get_recent_dialogue(n=3)
+    #     self.logger.bind(tag=TAG).info(f"RAG enhanced query: {enhanced_query}")
+
+    #     # 2. Retrieve documents
+    #     retrieved_docs = self.retriever.search(enhanced_query)
+    #     self.logger.bind(tag=TAG).info(f"RAG retrieved docs: {retrieved_docs}")
+    #     # RAG - End
+
+    #     # Define intent functions
+    #     functions = None
+    #     if self.intent_type == "function_call" and hasattr(self, "func_handler"):
+    #         functions = self.func_handler.get_functions()
+    #     response_message = []
+
+    #     try:
+    #         # 使用带记忆的对话
+    #         memory_str = None
+    #         if self.memory is not None:
+    #             future = asyncio.run_coroutine_threadsafe(
+    #                 self.memory.query_memory(query), self.loop
+    #             )
+    #             memory_str = future.result()
+    #         self.logger.bind(tag=TAG).info(f"记忆模块返回结果: {memory_str}")
+    #         current_dialogue = self.dialogue.get_llm_dialogue_with_rag(
+    #                     memory_str, self.config.get('voiceprint', {}), retrieved_docs
+    #                 )
+    #         self.logger.bind(tag=TAG).info(f"当前dialogue对象：{current_dialogue}")
+
+    #         if self.intent_type == "function_call" and functions is not None:
+    #             # 使用支持functions的streaming接口
+    #             llm_responses = self.llm.response_with_functions(
+    #                 self.session_id,
+    #                 current_dialogue,
+    #                 functions=functions,
+    #             )
+    #         else:
+    #             llm_responses = self.llm.response(
+    #                 self.session_id,
+    #                 current_dialogue,
+    #             )
+    #     except Exception as e:
+    #         self.logger.bind(tag=TAG).error(f"LLM 处理出错 {query}: {e}")
+    #         return None
+
+    #     # 处理流式响应
+    #     tool_call_flag = False
+    #     function_name = None
+    #     function_id = None
+    #     function_arguments = ""
+    #     content_arguments = ""
+    #     self.client_abort = False
+    #     emotion_flag = True
+    #     for response in llm_responses:
+    #         if self.client_abort:
+    #             break
+    #         if self.intent_type == "function_call" and functions is not None:
+    #             content, tools_call = response
+    #             if "content" in response:
+    #                 content = response["content"]
+    #                 tools_call = None
+    #             if content is not None and len(content) > 0:
+    #                 content_arguments += content
+
+    #             if not tool_call_flag and content_arguments.startswith("<tool_call>"):
+    #                 # print("content_arguments", content_arguments)
+    #                 tool_call_flag = True
+
+    #             if tools_call is not None and len(tools_call) > 0:
+    #                 tool_call_flag = True
+    #                 if tools_call[0].id is not None:
+    #                     function_id = tools_call[0].id
+    #                 if tools_call[0].function.name is not None:
+    #                     function_name = tools_call[0].function.name
+    #                 if tools_call[0].function.arguments is not None:
+    #                     function_arguments += tools_call[0].function.arguments
+    #         else:
+    #             content = response
+
+    #         # 在llm回复中获取情绪表情，一轮对话只在开头获取一次
+    #         if emotion_flag and content is not None and content.strip():
+    #             asyncio.run_coroutine_threadsafe(
+    #                 textUtils.get_emotion(self, content),
+    #                 self.loop,
+    #             )
+    #             emotion_flag = False
+
+    #         if content is not None and len(content) > 0:
+    #             if not tool_call_flag:
+    #                 response_message.append(content)
+    #                 self.tts.tts_text_queue.put(
+    #                     TTSMessageDTO(
+    #                         sentence_id=self.sentence_id,
+    #                         sentence_type=SentenceType.MIDDLE,
+    #                         content_type=ContentType.TEXT,
+    #                         content_detail=content,
+    #                     )
+    #                 )
+    #     # 处理function call
+    #     if tool_call_flag:
+    #         bHasError = False
+    #         if function_id is None:
+    #             a = extract_json_from_string(content_arguments)
+    #             if a is not None:
+    #                 try:
+    #                     content_arguments_json = json.loads(a)
+    #                     function_name = content_arguments_json["name"]
+    #                     function_arguments = json.dumps(
+    #                         content_arguments_json["arguments"], ensure_ascii=False
+    #                     )
+    #                     function_id = str(uuid.uuid4().hex)
+    #                 except Exception as e:
+    #                     bHasError = True
+    #                     response_message.append(a)
+    #             else:
+    #                 bHasError = True
+    #                 response_message.append(content_arguments)
+    #             if bHasError:
+    #                 self.logger.bind(tag=TAG).error(
+    #                     f"function call error: {content_arguments}"
+    #                 )
+    #         if not bHasError:
+    #             # 如需要大模型先处理一轮，添加相关处理后的日志情况
+    #             if len(response_message) > 0:
+    #                 text_buff = "".join(response_message)
+    #                 self.tts_MessageText = text_buff
+    #                 self.dialogue.put(Message(role="assistant", content=text_buff))
+    #             response_message.clear()
+    #             self.logger.bind(tag=TAG).debug(
+    #                 f"function_name={function_name}, function_id={function_id}, function_arguments={function_arguments}"
+    #             )
+    #             function_call_data = {
+    #                 "name": function_name,
+    #                 "id": function_id,
+    #                 "arguments": function_arguments,
+    #             }
+
+    #             # 使用统一工具处理器处理所有工具调用
+    #             result = asyncio.run_coroutine_threadsafe(
+    #                 self.func_handler.handle_llm_function_call(
+    #                     self, function_call_data
+    #                 ),
+    #                 self.loop,
+    #             ).result()
+    #             self._handle_function_result(result, function_call_data, depth=depth)
+
+    #     # 存储对话内容
+    #     if len(response_message) > 0:
+    #         text_buff = "".join(response_message)
+    #         self.tts_MessageText = text_buff
+    #         self.dialogue.put(Message(role="assistant", content=text_buff))
+    #     if depth == 0:
+    #         self.tts.tts_text_queue.put(
+    #             TTSMessageDTO(
+    #                 sentence_id=self.sentence_id,
+    #                 sentence_type=SentenceType.LAST,
+    #                 content_type=ContentType.ACTION,
+    #             )
+    #         )
+    #     self.llm_finish_task = True
+    #     # 使用lambda延迟计算，只有在DEBUG级别时才执行get_llm_dialogue()
+    #     self.logger.bind(tag=TAG).debug(
+    #         lambda: json.dumps(
+    #             self.dialogue.get_llm_dialogue(), indent=4, ensure_ascii=False
+    #         )
+    #     )
+
+    #     return True
+
     def _handle_function_result(self, result, function_call_data, depth):
         if result.action == Action.RESPONSE:  # 直接回复前端
             text = result.response
@@ -889,6 +1120,7 @@ class ConnectionHandler:
                     )
                 )
                 self.chat(text, depth=depth + 1)
+                # self.chat("", depth=depth + 1, add_user_message=False)
         elif result.action == Action.NOTFOUND or result.action == Action.ERROR:
             text = result.response if result.response else result.result
             self.tts.tts_one_sentence(self, ContentType.TEXT, content_detail=text)

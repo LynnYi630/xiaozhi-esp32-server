@@ -73,6 +73,8 @@ def get_config_from_api(config):
         config_data["rag"] = config["rag"]
     if config.get("redis"):
         config_data["redis"] = config["redis"]
+    if config.get("mysql"):
+        config_data["mysql"] = config["mysql"]
     return config_data
 
 

@@ -395,7 +395,7 @@ ASR:
 VAD:
   SileroVAD:
     type: silero
-    threshold: 0.5
+    threshold: 0.7
     threshold_low: 0.3
     model_dir: models/snakers4_silero-vad
     min_silence_duration_ms: 300  # 如果说话停顿比较长，可以把这个值设置大一些
@@ -911,3 +911,6 @@ TTS:
     # 默认音色，如需其他音色可到项目assets文件夹下注册
     voice: "jay_klee"
     output_dir: tmp/
+
+
+    

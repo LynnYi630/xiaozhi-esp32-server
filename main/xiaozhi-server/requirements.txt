@@ -46,3 +46,6 @@ redis==5.2.1
 xlrd==2.0.1
 sentence-transformers
 langchain-huggingface
+python-Levenshtein
+SQLAlchemy
+PyMySQL

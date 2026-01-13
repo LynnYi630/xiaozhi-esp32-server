@@ -46,13 +46,18 @@ def process_txt(file_path, redis_client):
     loader = TextLoader(file_path, encoding='utf-8')
     raw_doc = loader.load()[0]
 
+    # 自定义分割器，优先按换行符分割
+    separators = ["\n\n", "\n", "。", "！", "？", "，", "；", "：", " ", ""]
+    
     parent_splitter = RecursiveCharacterTextSplitter(
         chunk_size=PARENT_CHUNK_SIZE,
-        chunk_overlap=PARENT_CHUNK_OVERLAP
+        chunk_overlap=PARENT_CHUNK_OVERLAP,
+        separators=separators
     )
     child_splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHILD_CHUNK_SIZE,
-        chunk_overlap=CHILD_CHUNK_OVERLAP
+        chunk_overlap=CHILD_CHUNK_OVERLAP,
+        # separators=separators
     )
     
     parent_chunks = parent_splitter.split_documents([raw_doc])
